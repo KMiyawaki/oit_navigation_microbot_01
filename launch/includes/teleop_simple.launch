@@ -1,0 +1,18 @@
+<launch>
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_name" default="my_elecom" />
+  <arg name="joy_conf" default="$(find oit_navigation_microbot_01)/config/$(arg joy_name).yaml" />
+  <arg name="rviz_conf" default="$(find oit_navigation_microbot_01)/config/rviz/simple.rviz" />
+  <arg name="rviz_required" default="true" />
+  <arg name="use_joy" default="false" />
+  <arg name="use_mouse" default="true" />
+
+  <include file="$(find oit_navigation_microbot_01)/launch/includes/teleop_base.launch">
+    <arg name="joy_conf" value="$(arg joy_conf)" />
+    <arg name="joy_dev" value="$(arg joy_dev)" />
+    <arg name="rviz_conf" value="$(arg rviz_conf)" />
+    <arg name="rviz_required" value="$(arg rviz_required)" />
+    <arg name="use_joy" value="$(arg use_joy)" />
+    <arg name="use_mouse" value="$(arg use_mouse)" />
+  </include>
+</launch>

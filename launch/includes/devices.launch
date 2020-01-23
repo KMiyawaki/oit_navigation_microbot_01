@@ -1,0 +1,33 @@
+<launch>
+  <arg name="use_camera" default="true" />
+
+  <include file="$(find oit_roboclaw_driver)/launch/microbot_01.launch"/>
+
+  <node name="ydlidar_node"  pkg="ydlidar_ros"  type="ydlidar_node" output="screen" respawn="false" >
+    <param name="angle_min"    type="double" value="-180" />
+    <param name="angle_max"    type="double" value="180" />
+    <param name="auto_reconnect"    type="bool"   value="true"/>
+    <param name="baudrate"     type="int"    value="115200"/>
+    <param name="frame_id"     type="string" value="base_laser_link"/>
+    <param name="frequency"    type="double" value="7"/>
+    <param name="ignore_array" type="string" value="" />
+    <param name="low_exposure"  type="bool"   value="false"/>
+    <param name="port"         type="string" value="/dev/ydlidar"/>  
+    <param name="resolution_fixed"    type="bool"   value="true"/>
+    <param name="reversion"    type="bool"   value="false"/>
+    <param name="range_min"    type="double" value="0.1" />
+    <param name="range_max"    type="double" value="16.0" />
+    <param name="samp_rate"    type="int"    value="9"/>
+    <remap from="scan" to="base_scan" /> 
+  </node>
+
+  <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="laser_filter" output="screen">
+    <rosparam command="load" file="$(find oit_navigation_microbot_01)/config/laser_filter.yaml" />
+    <remap from="scan_filtered" to="base_scan" />
+  </node>
+
+  <group if="$(arg use_camera)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/jetbot_camera.launch">
+    </include>
+  </group>
+</launch>

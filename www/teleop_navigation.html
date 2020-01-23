@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./css/common.css">
+  <script type="text/javascript" src="http://static.robotwebtools.org/threejs/current/three.min.js"></script>
+  <script type="text/javascript"
+    src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+  <script type="text/javascript" src="http://static.robotwebtools.org/roslibjs/current/roslib.js"></script>
+  <script type="text/javascript" src="http://static.robotwebtools.org/ros3djs/current/ros3d.js"></script>
+  <script type="text/javascript" src="./js/oit.js"></script>
+  <script type="text/javascript" type="text/javascript">
+    /**
+     * Setup all visualization elements when the page is loaded.
+     */
+    const init = function () {
+      const hostName = location.hostname;
+      const fixedFrame = "map";
+      const interval = 100;
+      // Connect to ROS.
+      const ros = new ROSLIB.Ros({
+        url: 'ws://' + hostName + ':9090'
+      });
+
+      // Create the main viewer.
+      const viewer = new ROS3D.Viewer({
+        divID: 'map',
+        width: 800,
+        height: 400,
+        antialias: false,
+        background: '#666666'
+      });
+
+      const tfClient = new ROSLIB.TFClient({
+        ros: ros,
+        angularThres: 0.01,
+        transThres: 0.01,
+        rate: 15.0,
+        fixedFrame: fixedFrame,
+        serverName: 'tf2_web_republisher'
+      });
+
+      const scannerClient = new ROS3D.LaserScan({
+        ros: ros,
+        topic: '/base_scan',
+        tfClient: tfClient,
+        rootObject: viewer.scene,
+        queue_size: 1,
+        pointRatio: 15,
+        messageRatio: 1,
+        material: { color: 0xff00ff, size: 0.5 }
+      });
+
+      const urdfClient = new ROS3D.UrdfClient({
+        ros: ros,
+        tfClient: tfClient,
+        param: 'robot_description',
+        rootObject: viewer.scene,
+      });
+
+      const gridClient = new ROS3D.OccupancyGridClient({
+        ros: ros,
+        tfClient: tfClient,
+        rootObject: viewer.scene
+      });
+
+      const globalPathClient = new ROS3D.Path({
+        ros: ros,
+        topicName: '/move_base/NavfnROS/plan',
+        tfClient: tfClient,
+        color: 0xff00ff,
+        rootObject: viewer.scene
+      })
+
+      viewer.scene.add(new ROS3D.SceneNode({
+        tfClient: tfClient,
+        frameID: fixedFrame,
+        object: new ROS3D.Axes({
+          shaftRadius: 0.05,
+          headRadius: 0.1,
+          headLength: 0.2,
+          scale: 0.5
+        })
+      }));
+
+      const cursor = new OitJs.SimplePose2D(0, 0, 0);
+      const initialPoseArrow = new ROS3D.SceneNode({
+        tfClient: tfClient,
+        frameID: fixedFrame,
+        object: new ROS3D.Arrow({
+          shaftDiameter: 0.1, headDiameter: 0.2, length: 1,
+          material: new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        })
+      });
+      viewer.scene.add(initialPoseArrow);
+      /*
+      var poseArrayClient = new ROS3D.PoseArray({
+        ros: ros,
+        topic: 'particlecloud',
+        tfClient: tfClient,
+        rootObject: viewer.scene,
+        length: 0.2,
+        color: 0x00ff00
+      });
+      */
+      // Add a grid.
+      viewer.addObject(new ROS3D.Grid({ num_cells: 100 }));
+      // Publisher
+      const cmdVel = new ROSLIB.Topic({
+        ros: ros,
+        name: '/cmd_vel',
+        messageType: 'geometry_msgs/Twist'
+      });
+
+      const initialPosePub = new ROSLIB.Topic({
+        ros: ros,
+        name: '/initialpose',
+        messageType: 'geometry_msgs/PoseWithCovarianceStamped'
+      });
+      // Action client
+      let navigationClient = null;
+
+      const joyStick = new OitJs.JoyStick(document.getElementById('joyStick'), 300, 300);
+      const worldDirectionFromView = new OitJs.WorldDirectionFromView(viewer.camera);
+      const cursorRotation = OitJs.toRadian(10);
+      // HTML elements
+      const divStatus = document.getElementById('status');
+      const spanBaseLink = document.getElementById('baseLink');
+      const outLinearMax = document.getElementById('linearMax');
+      const outAngularMax = document.getElementById('angularMax');
+      const inpVehicleTracking = document.getElementById('vehicleTracking');
+      const selectImageTopic = document.getElementById('imageTopic');
+      const btnRequestToRosNav = document.getElementById('requestToRosNav');
+      const btnTurnLeft = document.getElementById('turnLeft');
+      const btnTurnRight = document.getElementById('turnRight');
+      const formMode = document.getElementById('mode');
+      const imgCameraImage = document.getElementById('cameraImage');
+      const imgConfig = document.getElementById('imageConfig');
+      const imgTopics = ['/jetbot_camera_image_modifier/mod_image', '/detectnet_view/detected_image'];
+      const imgTopicSelector = new OitJs.ImageTopicSelector(hostName, imgTopics, selectImageTopic, imgCameraImage, imgConfig);
+      imgTopicSelector.init();
+
+      const radioMode = {
+        velControl: { button: null, id: 'modeVelControl', value: "", label: "N/A" },
+        setInitialPos: { button: null, id: 'modeSetInitialPos', value: "", label: "Estimate" },
+        setNavigationGoal: { button: null, id: 'modeSetNavigationGoal', value: "", label: "Send goal" }
+      }
+
+      for (let k in radioMode) {
+        radio = radioMode[k];
+        radio.button = document.getElementById(radio.id);
+        const label = radio.label;
+        radio.button.onchange = function () {
+          if (this.checked === true) {
+            btnRequestToRosNav.value = label;
+          }
+        }
+        radio.value = radio.id;
+      }
+
+      btnTurnLeft.onclick = function () {
+        cursor.theta = OitJs.wrap2Pi(cursor.theta + cursorRotation);
+        initialPoseArrow.updatePose(cursor.to3D());
+      }
+
+      btnTurnRight.onclick = function () {
+        cursor.theta = OitJs.wrap2Pi(cursor.theta - cursorRotation);
+        initialPoseArrow.updatePose(cursor.to3D());
+      }
+
+      btnRequestToRosNav.onclick = function () {
+        if (formMode.radio.value === radioMode.setInitialPos.value) {
+          const varX = 0.25;
+          const varY = varX;
+          const varTheta = OitJs.toRadian(5);
+          const message = OitJs.buildPoseWithCovarianceStamped(fixedFrame, cursor.to3D(), varX, varY, varTheta);
+          initialPosePub.publish(message);
+          console.log("Published initial pose");
+          console.log(message);
+        } else if (formMode.radio.value === radioMode.setNavigationGoal.value) {
+          navigationClient = new ROSLIB.ActionClient({
+            ros: ros,
+            serverName: '/move_base',
+            actionName: 'move_base_msgs/MoveBaseAction'
+          });
+          const goal = new ROSLIB.Goal({
+            actionClient: navigationClient,
+            goalMessage: {
+              target_pose: {
+                header: {
+                  frame_id: fixedFrame
+                },
+                pose: cursor.to3D()
+              }
+            }
+          });
+
+          goal.on('result', function (result) {
+            console.log('Final Result: ' + result);
+            navigationClient = null;
+          });
+
+          goal.send();
+        }
+      }
+      // Some additional functions
+      let baseLink = new OitJs.SimplePose2D(0, 0, 0);
+      tfClient.subscribe('base_link', function (tf) {
+        baseLink = OitJs.tf2Pose2D(tf);
+        if (inpVehicleTracking.checked) {
+          viewer.cameraControls.center = new THREE.Vector3(baseLink.x, baseLink.y, 0);
+        }
+      });
+
+      const intervalHandler = function () {
+        spanBaseLink.innerHTML = "  Robot pose:" + baseLink.toString() + " <br />";
+        const joy = joyStick.getStickVector();
+        linMax = parseFloat(outLinearMax.textContent);
+        angMax = OitJs.toRadian(parseFloat(outAngularMax.textContent));
+        divStatus.innerHTML = "Camera:" + OitJs.vector3Str(viewer.camera.getWorldPosition()) + " ";
+        divStatus.innerHTML += (OitJs.joyStickStr(joy));
+        if (formMode.radio.value === radioMode.velControl.value) {
+          const twist = OitJs.JoyStickToDiffDrive.getTwist(joy, linMax, angMax);
+          cmdVel.publish(twist);
+          divStatus.innerHTML += (" " + OitJs.JoyStickToDiffDrive.twistStr(twist) + "<br/>");
+        } else {
+          worldDirectionFromView.moveToByJoy(cursor, joy);
+          initialPoseArrow.updatePose(cursor.to3D());
+          if (formMode.radio.value === radioMode.setInitialPos.value) {
+            divStatus.innerHTML += (" AMCL initial pose :" + cursor.toString());
+          } else if (formMode.radio.value === radioMode.setNavigationGoal.value) {
+            divStatus.innerHTML += (" Navigation goal :" + cursor.toString());
+          }
+        }
+      }
+
+      setInterval(intervalHandler, interval);
+    }
+  </script>
+</head>
+
+<body onload="init()">
+  <h2>Navigation</h2>
+  <div id="map"></div>
+  <div id="controlPanel">
+    <form id="mode" style="margin-bottom: 5px;">
+      <b>Mode </b>
+      <input type="radio" id="modeVelControl" name="radio" value="modeVelControl" checked="checked">
+      Vehicle control
+      </input>
+      <input type="radio" id="modeSetInitialPos" name="radio" value="modeSetInitialPos">
+      Set AMCL initial position
+      </input>
+      <input type="radio" id="modeSetNavigationGoal" name="radio" value="modeSetNavigationGoal">
+      Set navigation goal
+      </input>
+      <input type="button" id="requestToRosNav" class="controll_button" style="background: sandybrown;" value="N/A">
+      </input>
+      <input type="button" id="turnLeft" class="controll_button" value="Turn left">
+      </input>
+      <input type="button" id="turnRight" class="controll_button" value="Turn right">
+      </input>
+    </form>
+    <div id="joyStick" style="float: left;"></div>
+    <form>
+      <select name="imageTopic" id="imageTopic" style="margin-bottom: 5px;margin-left:5px;"></select>
+    </form>
+    <img id="cameraImage" src="" alt="Camera Image" style="margin-left:5px; float: left;"></img>
+  </div>
+  <div style="clear: left;">
+    Max Linear Velocity <output id="linearMax">0.40</output>(m/sec):
+    <input type="range" value="0.4" min="0.1" max="1.0" step="0.05"
+      oninput="document.getElementById('linearMax').value=parseFloat(this.value).toFixed(2)" />
+    Max Angular Velocity <output id="angularMax">30</output>(deg/sec):
+    <input type="range" value="30" min="10" max="90" step="5"
+      oninput="document.getElementById('angularMax').value=this.value" />
+    <br />
+    Robot tracking:
+    <input type="checkbox" id="vehicleTracking" checked="checked"></input><span id="baseLink"></span>
+    <div id="status"></div>
+    <div id="imageConfig"></div>
+  </div>
+</body>
+
+</html>

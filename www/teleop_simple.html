@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./css/common.css">
+  <script type="text/javascript" src="http://static.robotwebtools.org/threejs/current/three.min.js"></script>
+  <script type="text/javascript"
+    src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+  <script type="text/javascript" src="http://static.robotwebtools.org/roslibjs/current/roslib.js"></script>
+  <script type="text/javascript" src="http://static.robotwebtools.org/ros3djs/current/ros3d.js"></script>
+  <script type="text/javascript" src="./js/oit.js"></script>
+  <script type="text/javascript" type="text/javascript">
+    /**
+     * Setup all visualization elements when the page is loaded.
+     */
+    const init = function () {
+      const hostName = location.hostname;
+      const fixedFrame = "odom";
+      const interval = 100;
+      // Connect to ROS.
+      const ros = new ROSLIB.Ros({
+        url: 'ws://' + hostName + ':9090'
+      });
+
+      // Create the main viewer.
+      const viewer = new ROS3D.Viewer({
+        divID: 'map',
+        width: 800,
+        height: 400,
+        antialias: false,
+        background: '#666666'
+      });
+
+      const tfClient = new ROSLIB.TFClient({
+        ros: ros,
+        angularThres: 0.01,
+        transThres: 0.01,
+        rate: 15.0,
+        fixedFrame: fixedFrame,
+        serverName: 'tf2_web_republisher'
+      });
+
+      const scannerClient = new ROS3D.LaserScan({
+        ros: ros,
+        topic: '/base_scan',
+        tfClient: tfClient,
+        rootObject: viewer.scene,
+        queue_size: 1,
+        pointRatio: 15,
+        messageRatio: 1,
+        material: { color: 0xff00ff, size: 0.5 }
+      });
+
+      const urdfClient = new ROS3D.UrdfClient({
+        ros: ros,
+        tfClient: tfClient,
+        param: 'robot_description',
+        rootObject: viewer.scene,
+      });
+
+      // Publisher
+      const cmdVel = new ROSLIB.Topic({
+        ros: ros,
+        name: '/cmd_vel',
+        messageType: 'geometry_msgs/Twist'
+      });
+
+      const joyStick = new OitJs.JoyStick(document.getElementById('joyStick'), 300, 300);
+      // HTML elements
+      const divStatus = document.getElementById('status');
+      const outLinearMax = document.getElementById('linearMax');
+      const outAngularMax = document.getElementById('angularMax');
+      const inpVehicleTracking = document.getElementById('vehicleTracking');
+      const selectImageTopic = document.getElementById('imageTopic');
+      const imgCameraImage = document.getElementById('cameraImage');
+      const imgConfig = document.getElementById('imageConfig');
+      const imgTopics = ['/jetbot_camera_image_modifier/mod_image', '/detectnet_view/detected_image'];
+      const imgTopicSelector = new OitJs.ImageTopicSelector(hostName, imgTopics, selectImageTopic, imgCameraImage, imgConfig);
+      imgTopicSelector.init();
+
+      // Add a grid.
+      viewer.addObject(new ROS3D.Grid({ num_cells: 100 }));
+
+      // Some additional functions
+      const getViewerCameraPosition = function () {
+        const pos = viewer.camera.getWorldPosition();
+        return '' + pos.x.toFixed(2) + ',' + pos.y.toFixed(2) + ',' + pos.z.toFixed(2)
+      }
+
+      let baseLink = new OitJs.SimplePose2D(0, 0, 0);
+      tfClient.subscribe('base_link', function (tf) {
+        baseLink = OitJs.tf2Pose2D(tf);
+        if (inpVehicleTracking.checked) {
+          viewer.cameraControls.center = new THREE.Vector3(baseLink.x, baseLink.y, 0);
+        }
+      });
+
+      const intervalHandler = function () {
+        const joy = joyStick.getStickVector();
+        linMax = parseFloat(outLinearMax.textContent);
+        angMax = OitJs.toRadian(parseFloat(outAngularMax.textContent));
+        const twist = OitJs.JoyStickToDiffDrive.getTwist(joy, linMax, angMax);
+        cmdVel.publish(twist);
+        divStatus.innerHTML = "Camera:" + getViewerCameraPosition() + "<br/>";
+        divStatus.innerHTML += (OitJs.joyStickStr(joy) + " ");
+        divStatus.innerHTML += (OitJs.JoyStickToDiffDrive.twistStr(twist) + "<br/>");
+      }
+
+      setInterval(intervalHandler, interval);
+    }
+  </script>
+</head>
+
+<body onload="init()">
+  <h2>Teleop Simple</h2>
+  <div id="map"></div>
+  <div id="controlPanel">
+    <div id="joyStick" style="float: left;"></div>
+    <form>
+      <select name="imageTopic" id="imageTopic" style="margin-bottom: 5px;margin-left:5px;"></select>
+    </form>
+    <img id="cameraImage" src="" alt="Camera Image" style="margin-left:5px; float: left;"></img>
+  </div>
+  <div style="clear: left;">
+    Max Linear Velocity <output id="linearMax">0.40</output>(m/sec):
+    <input type="range" value="0.4" min="0.1" max="1.0" step="0.05"
+      oninput="document.getElementById('linearMax').value=parseFloat(this.value).toFixed(2)" />
+    Max Angular Velocity <output id="angularMax">30</output>(deg/sec):
+    <input type="range" value="30" min="10" max="90" step="5"
+      oninput="document.getElementById('angularMax').value=this.value" />
+    <br />
+    Vehicle tracking:
+    <input type="checkbox" id="vehicleTracking" checked="checked"></input>
+    <div id="status"></div>
+    <div id="imageConfig"></div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,29 @@
+<launch>
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_conf" default="$(find oit_navigation_microbot_01)/config/my_elecom.yaml" />
+  <arg name="rviz_conf" default="$(find oit_navigation_microbot_01)/config/rviz/simple.rviz" />
+  <arg name="rviz_required" default="true" />
+  <arg name="use_joy" default="false" />
+  <arg name="use_mouse" default="true" />
+
+  <group if="$(arg use_joy)">
+    <node pkg="joy" type="joy_node" name="joy_node">
+      <param name="dev" value="$(arg joy_dev)" />
+      <param name="deadzone" value="0.1" />
+      <param name="autorepeat_rate" value="20" />
+    </node>
+
+    <node pkg="teleop_twist_joy" name="teleop_twist_joy" type="teleop_node">
+      <rosparam command="load" file="$(arg joy_conf)" />
+    </node>
+  </group>
+  <group unless="$(arg use_joy)">
+    <group if="$(arg use_mouse)">
+      <node pkg="mouse_teleop" name="mouse_teleop" type="mouse_teleop.py">
+        <remap from="/mouse_vel" to ="/cmd_vel" />
+      </node>
+    </group>
+  </group>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_conf)" required="$(arg rviz_required)" />
+</launch>

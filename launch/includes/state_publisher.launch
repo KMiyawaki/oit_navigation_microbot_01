@@ -1,0 +1,5 @@
+<launch>
+  <arg name="model" default="$(find oit_navigation_microbot_01)/urdf/microbot_01.xacro"/>
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+</launch>

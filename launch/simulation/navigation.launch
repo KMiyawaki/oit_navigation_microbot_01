@@ -1,0 +1,37 @@
+<launch>
+  <arg name="initial_pose_x" default="0" />
+  <arg name="initial_pose_y" default="0" />
+  <arg name="initial_pose_a" default="0" />
+  <arg name="map_dir" default="$(find oit_navigation_microbot_01)/maps" />
+  <arg name="map_name" default="sample_01" />
+  <arg name="map_path" default="$(arg map_dir)/$(arg map_name).yaml" />
+  <arg name="use_fake_camera" default="true" />
+  <arg name="use_joy" default="false" />
+  <arg name="use_mouse" default="true" />
+  <arg name="use_teleop" default="false" />
+  <arg name="use_video_server" default="true" />
+  <arg name="use_web" default="true" />
+
+  <include file="$(find oit_navigation_microbot_01)/launch/simulation/base.launch">
+    <arg name="map_dir" value="$(arg map_dir)" />
+    <arg name="map_name" value="$(arg map_name)" />
+    <arg name="use_fake_camera" value="$(arg use_fake_camera)" />
+    <arg name="use_video_server" value="$(arg use_video_server)" />
+    <arg name="use_web" value="$(arg use_web)" />
+  </include>
+
+  <group if="$(arg use_teleop)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/teleop_navigation.launch">
+      <arg name="use_joy" value="$(arg use_joy)" />
+      <arg name="use_mouse" value="$(arg use_mouse)" />
+    </include>
+  </group>
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_path)" respawn="false" />
+  <include file="$(find oit_navigation_microbot_01)/launch/includes/amcl.xml">
+    <arg name="initial_pose_x" value="$(arg initial_pose_x)" />
+    <arg name="initial_pose_y" value="$(arg initial_pose_y)" />
+    <arg name="initial_pose_a" value="$(arg initial_pose_a)" />
+  </include>
+  <include file="$(find oit_navigation_microbot_01)/launch/includes/move_base/move_base.xml"/>
+</launch>

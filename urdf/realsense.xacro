@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:property name="realsense_x" value="0.035" />
+  <xacro:property name="realsense_z" value="0.05" />
+
+  <joint name="real_sense_joint" type="fixed">
+    <origin xyz="${realsense_x} 0 ${realsense_z}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+  </joint>
+
+  <link name="camera_link">
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+      <material name="laser_mat">
+        <color rgba="0.0 0.0 0.0 0.8"/>
+      </material>
+    </visual>
+  </link>
+</robot>

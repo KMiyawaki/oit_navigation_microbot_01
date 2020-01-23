@@ -1,0 +1,32 @@
+<launch>
+  <arg name="object_labels" default="/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"/>
+  <arg name="model_name" default="ssd-mobilenet-v2"/>
+  <arg name="use_camera" default="false" />
+  <arg name="use_compressed" default="true" />
+  <arg name="use_view" default="true" />
+
+  <node pkg="ros_deep_learning" type="detectnet" name="detectnet">
+    <remap from="/detectnet/image_in" to="/jetbot_camera_image_modifier/mod_image" />
+    <param name="model_name" value="$(arg model_name)" />
+  </node>
+
+  <group if="$(arg use_view)">
+    <node pkg="oit_navigation_microbot_01" type="detectnet_view.py" name="detectnet_view" output="screen">
+      <param name="object_labels" value="$(arg object_labels)" />
+      <param name="font_scale" value="3" />
+      <param name="line_width" value="3" />
+    </node>
+    <group if="$(arg use_compressed)">
+      <node name="detectnet_view_image_republisher" pkg="image_transport" type="republish" args="raw compressed">
+        <remap from="in" to="/detectnet_view/detected_image" />
+        <remap from="out" to="~image" />
+      </node>
+    </group>
+  </group>
+
+  <group if="$(arg use_camera)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/jetbot_camera.launch">
+      <arg name="use_compressed" value="$(arg use_compressed)" />
+    </include>
+  </group>
+</launch>

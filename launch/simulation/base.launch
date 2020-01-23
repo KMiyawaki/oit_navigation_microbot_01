@@ -1,0 +1,40 @@
+<launch>
+  <arg name="map_dir" default="$(find oit_navigation_microbot_01)/maps" />
+  <arg name="map_name" default="sample_01" />
+  <arg name="map_path" default="$(arg map_dir)/$(arg map_name).yaml" />
+  <arg name="robot_model" default="$(find oit_navigation_microbot_01)/urdf/microbot_01.xacro"/>
+  <arg name="simulation_world" default="$(arg map_dir)/$(arg map_name).world"/>
+  <arg name="use_fake_camera" default="true" />
+  <arg name="use_state_publisher" default="true" />
+  <arg name="use_video_server" default="true" />
+  <arg name="use_web" default="true" />
+
+  <group if="$(arg use_state_publisher)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/state_publisher.launch">
+      <arg name="model" value="$(arg robot_model)" />
+    </include>
+  </group>
+
+  <include file="$(find oit_navigation_microbot_01)/launch/simulation/stage.launch">
+    <arg name="world" value="$(arg simulation_world)"/>
+  </include>
+
+  <group if="$(arg use_web)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/web.launch"></include>
+  </group>
+
+  <group if="$(arg use_video_server)">
+    <node pkg="web_video_server" name="web_video_server" type="web_video_server" />
+  </group>
+
+  <group if="$(arg use_fake_camera)">
+    <node pkg="image_publisher" type="image_publisher" name="image_publisher" args="$(find rviz)/images/splash.png">
+      <remap from="/image_publisher/image_raw" to="/jetbot_camera_image_modifier/mod_image" />
+    </node>
+  </group>
+  <group unless="$(arg use_fake_camera)">
+    <node pkg="cv_camera" name="cv_camera_node" type="cv_camera_node">
+      <remap from="/cv_camera_node/image_raw" to="/jetbot_camera_image_modifier/mod_image" />
+    </node>
+  </group>
+</launch>

@@ -1,0 +1,11 @@
+<launch>
+  <arg name="scale" default="0.4" />
+  <node pkg="oit_navigation_microbot_01" type="compressed_image_viewer.py" ns="compressed_image_viewer" name="jetbot_camera_modified_image_republished">
+    <param name="compressed_image_topic" value="/jetbot_camera_modified_image_republisher/image/compressed" />
+    <param name="scale" value="$(arg scale)" />
+  </node>
+  <node pkg="oit_navigation_microbot_01" type="compressed_image_viewer.py" ns="compressed_image_viewer" name="detectnet_view_image_republished">
+    <param name="compressed_image_topic" value="/detectnet_view_image_republisher/image/compressed" />
+    <param name="scale" value="$(arg scale)" />
+  </node>
+</launch>

@@ -1,0 +1,15 @@
+<launch>
+  <arg name="use_compressed" default="true" />
+
+  <node pkg="jetbot_ros" name="jetbot_camera" type="jetbot_camera">
+  </node>
+  <node pkg="oit_navigation_microbot_01" name="jetbot_camera_image_modifier" type="jetbot_camera_image_modifier.py">
+  </node>
+
+  <group if="$(arg use_compressed)">
+    <node name="jetbot_camera_modified_image_republisher" pkg="image_transport" type="republish" args="raw compressed">
+      <remap from="in" to="/jetbot_camera_image_modifier/mod_image" />
+      <remap from="out" to="~image" />
+    </node>
+  </group>
+</launch>

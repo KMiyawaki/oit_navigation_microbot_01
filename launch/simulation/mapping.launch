@@ -1,0 +1,37 @@
+<launch>
+  <arg name="map_dir" default="$(find oit_navigation_microbot_01)/maps" />
+  <arg name="map_name" default="sample_01" />
+  <arg name="use_fake_camera" default="true" />
+  <arg name="use_joy" default="false" />
+  <arg name="use_mouse" default="true" />
+  <arg name="use_teleop" default="false" />
+  <arg name="use_video_server" default="true" />
+  <arg name="use_web" default="true" />
+  <arg name="xmin" default="-5"/>
+  <arg name="xmax" default="5"/>
+  <arg name="ymin" default="-5"/>
+  <arg name="ymax" default="5"/>
+
+  <include file="$(find oit_navigation_microbot_01)/launch/simulation/base.launch">
+    <arg name="map_dir" value="$(arg map_dir)" />
+    <arg name="map_name" value="$(arg map_name)" />
+    <arg name="use_fake_camera" value="$(arg use_fake_camera)" />
+    <arg name="use_web" value="$(arg use_web)" />
+    <arg name="use_video_server" value="$(arg use_video_server)" />
+  </include>
+
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <remap from="scan" to="base_scan" />
+    <param name="xmin" value="$(arg xmin)" />
+    <param name="xmax" value="$(arg xmax)" />
+    <param name="ymin" value="$(arg ymin)" />
+    <param name="ymax" value="$(arg ymax)" />
+  </node>
+
+  <group if="$(arg use_teleop)">
+    <include file="$(find oit_navigation_microbot_01)/launch/includes/teleop_mapping.launch">
+      <arg name="use_joy" value="$(arg use_joy)" />
+      <arg name="use_mouse" value="$(arg use_mouse)" />
+    </include>
+  </group>
+</launch>

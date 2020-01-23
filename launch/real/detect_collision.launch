@@ -1,0 +1,14 @@
+<launch>
+  <arg name="model_path" default="$(find oit_navigation_microbot_01)/models/collision_avoidance/best_model.pth"/>
+  <arg name="python3" default="false"/>
+  <group if="$(arg python3)">
+    <node name="detect_collision" pkg="oit_navigation_microbot_01" type="detect_collision_python3.py" output="screen">
+      <param name="model_path" value="$(arg model_path)"/>
+    </node>
+  </group>
+  <group unless="$(arg python3)">
+    <node name="detect_collision" pkg="oit_navigation_microbot_01" type="detect_collision_python2.py" output="screen">
+      <param name="model_path" value="$(arg model_path)"/>
+    </node>
+  </group>
+</launch>
