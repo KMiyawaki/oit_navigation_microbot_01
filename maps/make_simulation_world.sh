@@ -27,8 +27,8 @@ function main(){
   echo "Add black border into ${MAP_PGM}... "
   ./make_border.sh ${MAP_PGM}
   echo "Generated ${MAP_PNG}"
-  local -r IMG_WIDTH=$(identify -format "%w" sample_03_border.png)
-  local -r IMG_HEIGHT=$(identify -format "%w" sample_03_border.png)
+  local -r IMG_WIDTH=$(identify -format "%w" ${MAP_PNG})
+  local -r IMG_HEIGHT=$(identify -format "%h" ${MAP_PNG})
   local -r MAP_WIDTH=$(echo "scale=2;${IMG_WIDTH} * 0.05" | bc)
   local -r MAP_HEIGHT=$(echo "scale=2;${IMG_HEIGHT} * 0.05" | bc)
   local -r ORIGIN=$(extract_map_origin "${MAP_YAML}")
