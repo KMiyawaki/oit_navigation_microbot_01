@@ -25,7 +25,7 @@ define YDLIDAR_X4 ranger
 define robot position
 (
   size [0.145 0.115 0.1265]
-  
+  # 0.145 / 2 - 0.0385
   origin [0.034 0 0 0]
   gui_nose 1
   drive "diff"
