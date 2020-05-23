@@ -74,7 +74,7 @@ robot
   pose [0 0 0 0]
 )
 
-block(
+rect_block(
   pose [0 -2 0 0]
   color "blue"
 )
