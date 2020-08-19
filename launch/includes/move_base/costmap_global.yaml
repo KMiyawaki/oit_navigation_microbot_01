@@ -3,8 +3,6 @@ global_costmap:
   robot_base_frame: base_link
   update_frequency: 0.5
   publish_frequency: 1
-  inflation_radius: 0.4
-  # static_map: true
   rolling_window: false
   plugins:
    - {name: static_layer, type: "costmap_2d::StaticLayer"}
@@ -13,3 +11,6 @@ global_costmap:
   obstacle_layer:
     observation_sources: base_scan
     base_scan: { data_type: LaserScan, expected_update_rate: 0.5, observation_persistence: 0.0, marking: true, clearing: true}
+  inflation_layer:
+    inflation_radius: 1.0
+    cost_scaling_factor: 5.0
